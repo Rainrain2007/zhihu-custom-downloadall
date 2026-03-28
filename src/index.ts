@@ -18,7 +18,7 @@ import { myListenSearchListItem } from './components/listen-search-list-item';
 import { initOneClickInvitation } from './components/one-click-invitation';
 import { myPageFilterSetting } from './components/page-filter-setting';
 import { changeICO, changeTitle, myCachePageTitle } from './components/page-title';
-import { myCollectionExport, printArticle, printPeopleAnswer, printPeopleArticles } from './components/print';
+import { myCollectionExport, printArticle, printPeopleAnswer, printPeopleArticles, printPeoplePins } from './components/print';
 import { closeAllSelect } from './components/select';
 import { changeSizeBeforeResize, mySize } from './components/size';
 import { initSuspensionSwitch, suspensionPickupAttribute } from './components/suspension';
@@ -48,7 +48,7 @@ import { INNER_CSS } from './web-resources';
 
   const T0 = performance.now();
   const { hostname, href, pathname, hash } = location;
-  const { setFetchHeaders, getFetchHeaders, findRemoveRecommends, setUserAnswer, setUserArticle, setUserInfo, findRemoveAnswers, setJsInitialData } = store;
+  const { setFetchHeaders, getFetchHeaders, findRemoveRecommends, setUserAnswer, setUserArticle, setUserPin, setUserInfo, findRemoveAnswers, setJsInitialData } = store;
 
   /** 在启动时注入的内容 */
   async function onDocumentStart() {
@@ -110,9 +110,18 @@ import { INNER_CSS } from './web-resources';
           });
 
           // 用户主页回答
-          interceptionResponse(res, /\api\/v4\/members\/[^/]+\/answers/, (r) => setUserAnswer(r.data));
+          interceptionResponse(res, /\/api\/v4\/members\/[^/]+\/answers/, (r) => setUserAnswer(r.data));
           // 用户主页文章
-          interceptionResponse(res, /\api\/v4\/members\/[^/]+\/articles/, (r) => setUserArticle(r.data));
+          interceptionResponse(res, /\/api\/v4\/members\/[^/]+\/articles/, (r) => setUserArticle(r.data));
+          // 用户主页想法
+          interceptionResponse(res, /\/api\/v4\/.*pins/, (r) => {
+            console.log('🚨 [Collector] 拦截到想法数据:', r);
+            if (r && r.data) {
+                setUserPin(r.data);
+            } else if (Array.isArray(r)) {
+                setUserPin(r);
+            }
+          });
           // 个人信息
           interceptionResponse(res, /\/api\/v4\/me\?/, (r) => {
             setUserInfo(r);
@@ -157,8 +166,22 @@ import { INNER_CSS } from './web-resources';
         // 获取JS默认缓存的回答数据
         try {
           const prevAnswers = JsData.initialState.entities.answers;
-          const answerTargets: IZhihuAnswerTarget[] = Object.values(prevAnswers);
-          answerTargets.length && findRemoveAnswers(answerTargets);
+          const answerTargets: any[] = Object.values(prevAnswers);
+          answerTargets.length && setUserAnswer(answerTargets);
+        } catch {}
+
+        // 获取JS默认缓存的文章数据
+        try {
+          const prevArticles = JsData.initialState.entities.articles;
+          const articleTargets: any[] = Object.values(prevArticles);
+          articleTargets.length && setUserArticle(articleTargets);
+        } catch {}
+
+        // 获取JS默认缓存的想法数据
+        try {
+          const prevPins = JsData.initialState.entities.pins;
+          const pinTargets: any[] = Object.values(prevPins).filter((p: any) => p && (p.id || p.target?.id));
+          pinTargets.length && setUserPin(pinTargets);
         } catch {}
       } catch {}
       const { removeTopAD } = await myStorage.getConfig();
@@ -217,6 +240,9 @@ import { INNER_CSS } from './web-resources';
       },
       posts: () => {
         throttle(printPeopleArticles)();
+      },
+      pins: () => {
+        throttle(printPeoplePins)();
       },
       people: topBlockUser,
       org: topBlockUser,

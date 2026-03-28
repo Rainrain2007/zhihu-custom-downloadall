@@ -22,6 +22,8 @@ class Store {
   userAnswers: any[] = [];
   /** 当前用户主页的文章内容 */
   userArticle: any[] = [];
+  /** 当前用户主页的想法内容 */
+  userPins: any[] = [];
   /** 回答内容过滤的项 */
   removeAnswers: IRecommendRemoved[] = [];
   /** 页面初始化的数据，取自 document.getElementById('js-initialData') */
@@ -39,6 +41,8 @@ class Store {
     this.getUserAnswer = this.getUserAnswer.bind(this);
     this.setUserArticle = this.setUserArticle.bind(this);
     this.getUserArticle = this.getUserArticle.bind(this);
+    this.setUserPin = this.setUserPin.bind(this);
+    this.getUserPin = this.getUserPin.bind(this);
     this.setCommentAuthors = this.setCommentAuthors.bind(this);
     this.getCommentAuthors = this.getCommentAuthors.bind(this);
     this.findRemoveAnswers = this.findRemoveAnswers.bind(this);
@@ -93,16 +97,43 @@ class Store {
   }
 
   setUserAnswer(data: any[]) {
-    this.userAnswers = data;
+    // 强制改为累加模式，不再覆盖
+    const newAnswers = data.filter(item => !this.userAnswers.find(old => old.id === item.id));
+    this.userAnswers = [...this.userAnswers, ...newAnswers];
+    console.log(`[Collector] 当前容器总数: ${this.userAnswers.length}`);
   }
   getUserAnswer() {
     return this.userAnswers;
   }
   setUserArticle(data: any[]) {
-    this.userArticle = data;
+    const newArticles = data.filter(item => !this.userArticle.find(old => old.id === item.id));
+    this.userArticle = [...this.userArticle, ...newArticles];
+    console.log(`[Collector] 当前文章容器总数: ${this.userArticle.length}`);
   }
   getUserArticle() {
     return this.userArticle;
+  }
+  setUserPin(data: any[]) {
+    if (!data || !Array.isArray(data)) return;
+    // 兼容两种格式：直接是 pin 对象，或者包裹在 target 里
+    const formattedData = data.map((item) => {
+      if (item.target && item.target.type === 'pin') {
+        return item.target;
+      }
+      return item;
+    });
+
+    const newPins = formattedData.filter((item) => {
+      if (!item) return false;
+      const id = item.id;
+      if (!id) return false;
+      return !this.userPins.find((old) => old.id === id);
+    });
+    this.userPins = [...this.userPins, ...newPins];
+    console.log(`[Collector] 当前想法容器总数: ${this.userPins.length}`);
+  }
+  getUserPin() {
+    return this.userPins;
   }
   async setCommentAuthors(authors: IBlockedUser[]) {
     this.commendAuthors = authors;
