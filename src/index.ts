@@ -340,7 +340,6 @@ import { INNER_CSS } from './web-resources';
 
   // 复制代码块删除版权信息
   window.addEventListener('copy', function (event) {
-    console.log('???????copy')
     eventCopy(event);
   });
 

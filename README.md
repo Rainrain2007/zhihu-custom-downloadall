@@ -1,4 +1,11 @@
+# 知乎修改器 - 一键全部下载版
+
+本项目基于 [liuyubing233/zhihu-custom](https://github.com/liuyubing233/zhihu-custom) 修改，主要新增了知乎想法和回答一键全部下载功能。
+
+---
+
 # 知乎修改器，一个可以自定义知乎的脚本
+
 
 ### <a style="color: red;" href="https://github.com/liuyubing233/zhihu-custom/blob/main/Q%26A.md">提问前请先查看问题解答，已存在解答的内容不做回复</a>
 

@@ -10,12 +10,14 @@ interface IRecommendRemoved {
 }
 
 class Store {
+  static readonly MAX_REMOVE_CACHE = 2000;
   /** 用户信息 更改prev: userInfo */
   userInfo: IZhihuUserInfo | undefined = undefined;
   /** 上一个请求的 Headers */
   prevFetchHeaders: HeadersInit = {};
   /** 推荐类别过滤的内容 */
   removeRecommends: IRecommendRemoved[] = [];
+  removeRecommendMap = new Map<string, string>();
   /** 评论区用户信息集合 */
   commendAuthors: IBlockedUser[] = [];
   /** 当前用户主页的回答内容 */
@@ -26,6 +28,7 @@ class Store {
   userPins: any[] = [];
   /** 回答内容过滤的项 */
   removeAnswers: IRecommendRemoved[] = [];
+  removeAnswerMap = new Map<string, string>();
   /** 页面初始化的数据，取自 document.getElementById('js-initialData') */
   jsInitialData: IJsInitialData | undefined = undefined;
 
@@ -67,9 +70,9 @@ class Store {
 
   async findRemoveRecommends(recommends: IZhihuRecommendItem[]) {
     const { removeAnonymousQuestion, removeFromYanxuan, videoInAnswerArticle } = await myStorage.getConfig();
-    recommends.forEach((item) => {
+    for (const item of recommends) {
       const target = item.target;
-      if (!target) return;
+      if (!target) continue;
       let message = '';
       // 盐选专栏回答
       if (removeFromYanxuan && target.paid_info) {
@@ -85,12 +88,11 @@ class Store {
       }
 
       if (message) {
-        this.removeRecommends.push({
-          id: String(item.target.id),
-          message,
-        });
+        const id = String(item.target.id);
+        this.removeRecommendMap.set(id, message);
       }
-    });
+    }
+    this.syncRemoveRecommends();
   }
   getRemoveRecommends() {
     return this.removeRecommends;
@@ -144,7 +146,7 @@ class Store {
 
   async findRemoveAnswers(answers: IZhihuAnswerTarget[]) {
     const { removeFromYanxuan, videoInAnswerArticle } = await myStorage.getConfig();
-    answers.forEach((item) => {
+    for (const item of answers) {
       let message = '';
       if (removeFromYanxuan && item.answerType === 'paid' && item.labelInfo) {
         message = '已删除一条选自盐选专栏的回答';
@@ -155,12 +157,10 @@ class Store {
       }
 
       if (message) {
-        this.removeAnswers.push({
-          id: item.id,
-          message,
-        });
+        this.removeAnswerMap.set(String(item.id), message);
       }
-    });
+    }
+    this.syncRemoveAnswers();
   }
   getRemoveAnswers() {
     return this.removeAnswers;
@@ -171,6 +171,32 @@ class Store {
   }
   getJsInitialData() {
     return this.jsInitialData;
+  }
+
+  syncRemoveRecommends() {
+    const overflow = this.removeRecommendMap.size - Store.MAX_REMOVE_CACHE;
+    if (overflow > 0) {
+      const keys = this.removeRecommendMap.keys();
+      for (let i = 0; i < overflow; i++) {
+        const key = keys.next().value;
+        if (key === undefined) break;
+        this.removeRecommendMap.delete(key);
+      }
+    }
+    this.removeRecommends = Array.from(this.removeRecommendMap.entries()).map(([id, message]) => ({ id, message }));
+  }
+
+  syncRemoveAnswers() {
+    const overflow = this.removeAnswerMap.size - Store.MAX_REMOVE_CACHE;
+    if (overflow > 0) {
+      const keys = this.removeAnswerMap.keys();
+      for (let i = 0; i < overflow; i++) {
+        const key = keys.next().value;
+        if (key === undefined) break;
+        this.removeAnswerMap.delete(key);
+      }
+    }
+    this.removeAnswers = Array.from(this.removeAnswerMap.entries()).map(([id, message]) => ({ id, message }));
   }
 }
 
